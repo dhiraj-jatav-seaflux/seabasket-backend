@@ -8,3 +8,4 @@ export * from "./logger.helper";
 export * from "./phone-number-validator.helper";
 export * from "./route-initializer";
 export * from "./typeorm.repository";
+export * from "./sendEmail"

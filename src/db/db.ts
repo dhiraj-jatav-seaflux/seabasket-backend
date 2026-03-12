@@ -1,4 +1,4 @@
-import { UserEntity } from "@entities";
+import { CategoriesEntity, ProductImagesEntity, ProductsEntity, ReviewsEntity, UserEntity } from "@entities";
 import { envValidator, getLogger } from "@helpers";
 import { DataSource } from "typeorm";
 
@@ -11,14 +11,18 @@ export const initializeDB = async () => {
 
   if (!dataSource) {
     dataSource = new DataSource({
-      type: "postgres",
+      type: "mysql",
       host: envs.dbHost,
       port: envs.dbPort,
       username: envs.dbUser,
       password: envs.dbPassword,
       database: envs.dbName,
-      schema: envs.dbSchema,
-      entities: [UserEntity],
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      entities: [UserEntity,CategoriesEntity,ProductImagesEntity,ProductsEntity, ReviewsEntity],
+      synchronize:false,
+      logging:false
     });
 
     try {
