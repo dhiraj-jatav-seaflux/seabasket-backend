@@ -38,7 +38,7 @@ export async function signUpUser(
 
     if (existingUser) {
       return res.status(400).json({
-        message: "User already exists please login",
+        message: "Account already exists. Please log in.",
       });
     }
 
@@ -157,7 +157,7 @@ export async function verifyLoginOtp(
     });
 
     if (!user) {
-      return next({ status: 400, message: "User not found" });
+      return next({ status: 404, message: "User not found" });
     }
 
     if (user.loginOtp !== otp) {
@@ -208,7 +208,7 @@ export async function resendOtp(
     });
 
     if (!user) {
-      return next({ status: 400, message: "User not found" });
+      return next({ status: 404, message: "User not found" });
     }
 
     const otp = generateOTP();
@@ -244,11 +244,11 @@ export async function forgotPassword(
 
   try {
     const user = await userRepository.findOne({
-      where: { email: email },
+      where: { email },
     });
 
     if (!user) {
-      return res.status(400).json({ message: "User does not exist" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     const token = encode({ id: user.id });
@@ -285,11 +285,11 @@ export async function resetPassword(
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid reset token" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.resetTokenExpiration < new Date()) {
-      return res.status(400).json({ message: "Reset token expired" });
+    if (!user.resetTokenExpiration || user.resetTokenExpiration < new Date()) {
+      return res.status(400).json({ message: "Invalid or expired reset token" });
     }
 
     user.password = await hashPassword(password);
@@ -396,8 +396,7 @@ export async function addReview(
     const productId = Number(req.params.productId);
     const { id } = req.me;
 
-    const { comment } = req.body;
-    const { rating } = req.body;
+    const { comment,rating } = req.body;
 
     const productRepo = getRepo(ProductsEntity);
     const product = await productRepo.findOne({
@@ -412,7 +411,7 @@ export async function addReview(
 
     const alreadyReviewed = await reviewsRepo.findOne({
       where: {
-        id: productId,
+        productId: productId,
         userId: id,
       },
     });
