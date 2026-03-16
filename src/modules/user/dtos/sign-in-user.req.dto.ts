@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const SignInUserDTO = z.object({
-  email: z.string().email(),
+  login: z.string(),
   password: z.string().min(8),
 });
 
-export type TSignInUserDTO = z.infer<typeof SignInUserDTO>;
+export type TSignInUserDTO = z.infer<typeof SignInUserDTO>; 
