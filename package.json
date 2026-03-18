@@ -41,6 +41,7 @@
     "method-override": "^3.0.0",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
+    "mysql2": "^3.20.0",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "streamifier": "^0.1.1",
