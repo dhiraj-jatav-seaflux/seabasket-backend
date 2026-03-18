@@ -45,8 +45,8 @@ export async function signUpUser(
     const hasedPassword = await hashPassword(password);
 
     const user = userRepository.create({
-      firstName:first_name,
-      lastName:last_name,
+      first_name,
+      last_name,
       email,
       password: hasedPassword,
       phone,
@@ -59,8 +59,8 @@ export async function signUpUser(
     const otp = generateOTP();
     const expiration = new Date(Date.now() + 5 * 60 * 1000);
 
-    user.loginOtp = otp;
-    user.loginOtpExpiration = expiration;
+    user.login_otp = otp;
+    user.login_otp_expiration = expiration;
 
     await userRepository.save(user);
 
@@ -71,8 +71,8 @@ export async function signUpUser(
     res.status(200).json({
       data: {
         id: user.id,
-        first_name: user.firstName,
-        last_name: user.lastName,
+        first_name: user.first_name,
+        last_name: user.last_name,
         email: user.email,
         token,
       },
@@ -111,8 +111,8 @@ export async function signInUser(
 
     const expiration = new Date(Date.now() + 5 * 60 * 1000);
 
-    user.loginOtp = otp;
-    user.loginOtpExpiration = expiration;
+    user.login_otp = otp;
+    user.login_otp_expiration = expiration;
 
     await userRepository.save(user);
 
@@ -160,16 +160,16 @@ export async function verifyLoginOtp(
       return next({ status: 404, message: "User not found" });
     }
 
-    if (user.loginOtp !== otp) {
+    if (user.login_otp !== otp) {
       return next({ status: 400, message: "Invalid OTP" });
     }
 
-    if (new Date() > user.loginOtpExpiration) {
+    if (new Date() > user.login_otp_expiration) {
       return next({ status: 400, message: "OTP expired" });
     }
 
-    user.loginOtp = null;
-    user.loginOtpExpiration = null;
+    user.login_otp = null;
+    user.login_otp_expiration = null;
 
     await userRepository.save(user);
 
@@ -214,8 +214,8 @@ export async function resendOtp(
     const otp = generateOTP();
     const expiration = new Date(Date.now() + 5 * 60 * 1000);
 
-    user.loginOtp = otp;
-    user.loginOtpExpiration = expiration;
+    user.login_otp = otp;
+    user.login_otp_expiration = expiration;
 
     await userRepository.save(user);
 
@@ -253,9 +253,9 @@ export async function forgotPassword(
 
     const token = encode({ id: user.id });
 
-    user.resetToken = token;
+    user.reset_token = token;
 
-    user.resetTokenExpiration = new Date(Date.now() + 60 * 60 * 1000);
+    user.reset_token_expiration = new Date(Date.now() + 60 * 60 * 1000);
 
     await userRepository.save(user);
 
@@ -281,21 +281,21 @@ export async function resetPassword(
 
   try {
     const user = await userRepository.findOne({
-      where: { resetToken: token },
+      where: { reset_token: token },
     });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (!user.resetTokenExpiration || user.resetTokenExpiration < new Date()) {
+    if (!user.reset_token_expiration || user.reset_token_expiration < new Date()) {
       return res.status(400).json({ message: "Invalid or expired reset token" });
     }
 
     user.password = await hashPassword(password);
 
-    user.resetToken = null;
-    user.resetTokenExpiration = null;
+    user.reset_token = null;
+    user.reset_token_expiration = null;
 
     await userRepository.save(user);
 
@@ -313,8 +313,8 @@ export async function getUser(
   try {
     const {
       id,
-      firstName,
-      lastName,
+      first_name,
+      last_name,
       email,
       phone,
       address,
@@ -325,8 +325,8 @@ export async function getUser(
     res.status(200).json({
       data: {
         id,
-        firstName,
-        lastName,
+        first_name,
+        last_name,
         email,
         phone,
         address,
@@ -369,8 +369,8 @@ export async function updateUser(
       return res.status(400).json({ message: "User does not exist" });
     }
 
-    user.firstName = first_name;
-    user.lastName = last_name;
+    user.first_name = first_name;
+    user.last_name = last_name;
     user.address = address;
     user.city = city;
     user.email = email;
