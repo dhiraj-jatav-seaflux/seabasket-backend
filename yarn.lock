@@ -3384,6 +3384,11 @@ strip-literal@^3.0.0:
   dependencies:
     js-tokens "^9.0.1"
 
+stripe@^20.4.1:
+  version "20.4.1"
+  resolved "https://registry.yarnpkg.com/stripe/-/stripe-20.4.1.tgz#547d8a22a97e85a239895f0ffe14de21d96f060a"
+  integrity sha512-axCguHItc8Sxt0HC6aSkdVRPffjYPV7EQqZRb2GkIa8FzWDycE7nHJM19C6xAIynH1Qp1/BHiopSi96jGBxT0w==
+
 superagent@^10.2.3:
   version "10.2.3"
   resolved "https://registry.yarnpkg.com/superagent/-/superagent-10.2.3.tgz#d1e4986f2caac423c37e38077f9073ccfe73a59b"
