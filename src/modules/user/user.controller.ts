@@ -274,12 +274,11 @@ export async function resetPassword(
   res: TResponse,
   next: NextFunction,
 ) {
-  const { token } = req.params;
-  const { password } = req.body;
-
-  const userRepository = getRepo(UserEntity);
-
   try {
+    const { password,token } = req.body;
+    
+    const userRepository = getRepo(UserEntity);
+
     const user = await userRepository.findOne({
       where: { reset_token: token },
     });
