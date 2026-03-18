@@ -1,6 +1,8 @@
 import { UserRole } from "@types";
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { ReviewsEntity } from "./reviews.entity";
+import { CartsEntity } from "./carts.entity";
+import { OrderEntity } from "./orders.entity";
 
 @Entity("users")
 export class UserEntity {
@@ -8,10 +10,10 @@ export class UserEntity {
   id: number;
 
   @Column({ type: "varchar", length: 100, nullable: false })
-  firstName: string;
+  first_name: string;
 
   @Column({ type: "varchar", length: 100, nullable: false })
-  lastName: string;
+  last_name: string;
 
   @Column({type:"varchar", length:100, nullable:false, unique:true})
   email:string
@@ -38,23 +40,29 @@ export class UserEntity {
   state:string
 
   @Column({type:"varchar", length:6})
-  loginOtp:string
+  login_otp:string
 
   @Column({type:"timestamp"})
-  loginOtpExpiration:Date;
+  login_otp_expiration:Date;
 
   @Column({type:"varchar", length:255})
-  resetToken:string
+  reset_token:string
 
   @Column({type:"timestamp"})
-  resetTokenExpiration:Date;
+  reset_token_expiration:Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 
   @OneToMany(() => ReviewsEntity, (review) => review.user)
   reviews: ReviewsEntity[];
+
+  @OneToOne(()=>CartsEntity,(cart)=>cart.user)
+  cart:CartsEntity
+
+  @OneToMany(() => OrderEntity, (order) => order.user)
+  orders: OrderEntity[];
 }
