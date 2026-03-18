@@ -7,19 +7,19 @@ export class ProductImagesEntity{
     id:number;
 
     @Column({type:"int", nullable:false})
-    productId:number;
+    product_id:number;
 
     @Column({type:"varchar", length:250})
-    imageUrl:string;
+    image_url:string;
 
     @Column({type:'varchar', length:255})
-    publicId:string;
+    public_id:string;
 
     @CreateDateColumn()
-    createdAt:Date;
+    created_at:Date;
 
     @UpdateDateColumn()
-    updatedAt:Date;
+    updated_at:Date;
 
     @ManyToOne(()=>ProductsEntity, (product)=>product.images,{onDelete:'CASCADE'})
     @JoinColumn({name:"product_id"})

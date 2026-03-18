@@ -26,8 +26,11 @@
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
+    "@types/multer": "^2.1.0",
+    "@types/streamifier": "^0.1.2",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",
+    "cloudinary": "^2.9.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
@@ -37,8 +40,10 @@
     "libphonenumber-js": "^1.12.17",
     "method-override": "^3.0.0",
     "morgan": "^1.10.1",
+    "multer": "^2.1.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
+    "streamifier": "^0.1.1",
     "typeorm": "^0.3.26",
     "winston": "^3.14.2",
     "zod": "^4.1.9"
