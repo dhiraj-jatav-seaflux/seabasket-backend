@@ -1,9 +1,11 @@
 import { UserEntity } from "@entities";
 import { decode, getRepo } from "@helpers";
-import { TRequest, TResponse } from "@types";
+import { TRequest, TResponse, UserRole } from "@types";
 
 export const acl = async (req: TRequest, res: TResponse, next: () => void) => {
-  const tokenInfo = decode<any>(req.headers.authorization?.replace("Bearer ", ""));
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const tokenInfo = decode<any>(token);
 
   if (!tokenInfo) {
     res.status(401).send({ code: 401, reason: "Unauthorized!" });
@@ -21,5 +23,6 @@ export const acl = async (req: TRequest, res: TResponse, next: () => void) => {
   }
 
   req.me = user;
+  req.isAdmin = user.role === UserRole.ADMIN;
   next();
 };
