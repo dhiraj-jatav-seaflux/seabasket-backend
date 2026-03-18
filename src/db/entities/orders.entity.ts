@@ -9,9 +9,9 @@ import {
   UpdateDateColumn
 } from "typeorm";
 
+import { UserEntity } from "@entities";
 import { Status } from "@types";
-import { OrderItemsEntity } from "./order-items.entity";
-import { UserEntity } from "./user.entity";
+import { OrderItemsEntity } from "@entities";
 
 @Entity("orders")
 export class OrderEntity {
