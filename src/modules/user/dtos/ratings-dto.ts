@@ -1,7 +1,20 @@
-import {z} from "zod"
+import { z } from "zod";
 
-export const RatingsDTO = z.object({
-    rating: z.coerce.number().min(1).max(5)
-})
+export const RatingDTO = z.object({
+  comment: z
+    .string()
+    .trim()
+    .max(500, "Comment must be less than 500 characters")
+    .optional(),
 
-export type TRatingsDTO = z.infer<typeof RatingsDTO>
+  rating: z
+    .coerce.number()
+    .min(1)
+    .max(5)
+    .refine((val) => Number.isInteger(val * 10), {
+      message: "Rating must be in steps of 0.1",
+    })
+    .default(1),
+});
+
+export type TRatingDTO = z.infer<typeof RatingDTO>;

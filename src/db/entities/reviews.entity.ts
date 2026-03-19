@@ -1,6 +1,6 @@
-import { UserEntity } from "@entities";
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { ProductsEntity } from "@entities";
+import { UserEntity } from "@entities";
 
 @Entity("reviews")
 export class ReviewsEntity {
@@ -8,10 +8,10 @@ export class ReviewsEntity {
   id: number;
 
   @Column({ type: "int", nullable: false })
-  userId: number;
+  user_id: number;
 
   @Column({ type: "int", nullable: false })
-  productId: number;
+  product_id: number;
 
   @Column({ type: "int", nullable: false })
   rating: number;
@@ -20,16 +20,16 @@ export class ReviewsEntity {
   comment: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 
   @ManyToOne(
     () => UserEntity,
     user => user.reviews,
   )
-  @JoinColumn({ name: "userId" })
+  @JoinColumn({ name: "user_id" })
   user: UserEntity;
 
   @ManyToOne(
@@ -39,6 +39,6 @@ export class ReviewsEntity {
       onDelete: "CASCADE",
     },
   )
-  @JoinColumn({ name: "productId" })
+  @JoinColumn({ name: "product_id" })
   product: ProductsEntity;
 }
