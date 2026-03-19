@@ -11,7 +11,7 @@ const envSchema = z.object({
   dbUser: z.string().min(1),
   dbPort: z.number().int().max(9999),
   dbPassword: z.string().min(1),
-  dbSchema: z.string().min(1),
+  // dbSchema: z.string().min(1),
   nodeEnv: z
     .string()
     .min(1)
@@ -29,7 +29,7 @@ export function envValidator(): EnvSchema {
     dbUser: process.env.DB_USER!,
     dbPort: +process.env.DB_PORT!,
     dbPassword: process.env.DB_PASSWORD!,
-    dbSchema: process.env.DB_SCHEMA!,
+    // dbSchema: process.env.DB_SCHEMA!,
     nodeEnv: process.env.NODE_ENV!,
   });
 

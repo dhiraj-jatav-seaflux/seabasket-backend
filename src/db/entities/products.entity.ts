@@ -8,9 +8,11 @@ import {
   JoinColumn,
   OneToMany,
 } from "typeorm";
-import { CategoriesEntity } from "./categories.entity";
-import { ProductImagesEntity } from "./product-images.entity";
-import { ReviewsEntity } from "./reviews.entity";
+import { CategoriesEntity } from "@entities";
+import { ProductImagesEntity } from "@entities";
+import { ReviewsEntity } from "@entities";
+import { CartItemsEntity } from "@entities";
+import { OrderItemsEntity } from "@entities";
 
 @Entity("products")
 export class ProductsEntity {
@@ -29,8 +31,14 @@ export class ProductsEntity {
   @OneToMany(() => ReviewsEntity, (review) => review.product)
   reviews: ReviewsEntity[];
 
+  @OneToMany(() => CartItemsEntity, (item) => item.product)
+  cartItems: CartItemsEntity[];
+
+  @OneToMany(() => OrderItemsEntity, (item) => item.product)
+  orderItems: OrderItemsEntity[];
+
   @Column({ type: "int", nullable: false })
-  categoryId: number;
+  category_id: number;
 
   @Column({ type: "varchar", length: 100, nullable: false })
   name: string;
@@ -44,18 +52,18 @@ export class ProductsEntity {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   discount: number;
 
-  @Column({ type: "decimal", precision: 2, scale: 1, default: 0 })
+  @Column({ type: "decimal", precision: 3, scale: 1, default: 0 })
   rating: number;
 
   @Column({ type: "int", default: 0 })
   stock: number;
 
   @Column({ type: "boolean", default: false })
-  isTrending: boolean;
+  is_trending: boolean;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }
