@@ -1,4 +1,4 @@
-# Node Typescript Functional Boilerplate
+# SeaBasket-Backend
 
 ![Node.js](https://img.shields.io/badge/node-22.18.0-brightgreen.svg)
 ![Yarn](https://img.shields.io/badge/yarn-1.22.x-blue.svg)
