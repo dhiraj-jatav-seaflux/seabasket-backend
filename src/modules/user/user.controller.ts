@@ -447,6 +447,10 @@ export async function updateUser(
       return res.status(400).json({ message: "Phone number already exists" });
     }
 
+    if(!validatePhoneNumber(phone)){
+      return res.status(400).json({message:'Invalid phone number'})
+    }
+
     user.first_name = first_name;
     user.last_name = last_name;
     user.address = address;
