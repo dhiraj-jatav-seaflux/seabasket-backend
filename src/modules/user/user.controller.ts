@@ -1,5 +1,4 @@
 import {
-  CartItemsEntity,
   CartsEntity,
   ProductsEntity,
   ReviewsEntity,
@@ -13,11 +12,13 @@ import {
   hashPassword,
   sendResetEmail,
   verifyPassword,
+  validatePhoneNumber,
 } from "@helpers";
 import { TRequest, TResponse } from "@types";
 import { NextFunction } from "express";
-import { TSignInUserDTO, TSignUpUserDTO } from "./dtos";
+import { RatingDTO, TSignInUserDTO, TSignUpUserDTO } from "./dtos";
 import { sendEmail } from "@helpers";
+import { CartItemsEntity } from "db/entities/cart-items.entity";
 
 export async function signUpUser(
   req: TRequest<TSignUpUserDTO>,
@@ -38,13 +39,17 @@ export async function signUpUser(
     } = req.dto;
     const userRepository = getRepo(UserEntity);
 
+    if(!validatePhoneNumber(phone)){
+      return res.status(400).json({message:'Invalid phone number'})
+    }
+
     const existingUser = await userRepository.findOne({
       where: [{ email }, { phone }],
     });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "Account already exists. Please log in.",
+        message: "User already exists please login",
       });
     }
 
@@ -309,13 +314,15 @@ export async function forgotPassword(
 ) {
   try {
     const { email } = req.body;
+
     const userRepository = getRepo(UserEntity);
+
     const user = await userRepository.findOne({
       where: { email },
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(400).json({ message: "User does not exist" });
     }
 
     const token = encode({ id: user.id });
@@ -343,24 +350,17 @@ export async function resetPassword(
 ) {
   try {
     const { password, token } = req.body;
-
     const userRepository = getRepo(UserEntity);
-
     const user = await userRepository.findOne({
       where: { reset_token: token },
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(400).json({ message: "Invalid or expired token" });
     }
 
-    if (
-      !user.reset_token_expiration ||
-      user.reset_token_expiration < new Date()
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Invalid or expired reset token" });
+    if (user.reset_token_expiration < new Date()) {
+      return res.status(400).json({ message: "Invalid or expired token" });
     }
 
     user.password = await hashPassword(password);
@@ -416,28 +416,39 @@ export async function updateUser(
   res: TResponse,
   next: NextFunction,
 ) {
-  try {
-    const { userId } = req.params;
-    const {
-      first_name,
-      last_name,
-      email,
-      password,
-      phone,
-      address,
-      city,
-      pincode,
-      state,
-    } = req.dto;
+  const { id } = req.me;
+  const { first_name, last_name, email, phone, address, city, pincode, state } =
+    req.dto;
 
+  try {
     const userRepository = getRepo(UserEntity);
 
     const user = await userRepository.findOne({
-      where: { id: Number(userId) },
+      where: { id },
     });
 
     if (!user) {
       return res.status(400).json({ message: "User does not exist" });
+    }
+
+    const existingUserEmail = await userRepository.findOne({
+      where: { email },
+    });
+
+    const existingUserPhone = await userRepository.findOne({
+      where: { phone },
+    });
+
+    if (existingUserEmail && existingUserEmail.id != id) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
+    if (existingUserPhone && existingUserPhone.id != id) {
+      return res.status(400).json({ message: "Phone number already exists" });
+    }
+
+    if(!validatePhoneNumber(phone)){
+      return res.status(400).json({message:'Invalid phone number'})
     }
 
     user.first_name = first_name;
@@ -445,7 +456,6 @@ export async function updateUser(
     user.address = address;
     user.city = city;
     user.email = email;
-    user.password = password;
     user.pincode = pincode;
     user.phone = phone;
     user.state = state;
@@ -467,14 +477,14 @@ export async function addReview(
     const productId = Number(req.params.productId);
     const { id } = req.me;
 
-    const { comment, rating } = req.body;
+    const { comment, rating } = RatingDTO.parse(req.body);
 
     const productRepo = getRepo(ProductsEntity);
+    const reviewsRepo = getRepo(ReviewsEntity);
+
     const product = await productRepo.findOne({
       where: { id: productId },
     });
-
-    const reviewsRepo = getRepo(ReviewsEntity);
 
     if (!product) {
       return res.status(404).json({ message: "Product does not exist" });
@@ -482,8 +492,8 @@ export async function addReview(
 
     const alreadyReviewed = await reviewsRepo.findOne({
       where: {
-        productId: productId,
-        userId: id,
+        product_id: productId,
+        user_id: id,
       },
     });
 
@@ -494,13 +504,23 @@ export async function addReview(
     }
 
     const review = reviewsRepo.create({
-      productId: productId,
-      userId: id,
+      product_id: productId,
+      user_id: id,
       rating: rating,
       comment,
     });
 
     await reviewsRepo.save(review);
+
+    const result = await reviewsRepo
+      .createQueryBuilder("review")
+      .select("AVG(review.rating)", "avg")
+      .where("review.product_id = :productId", { productId })
+      .getRawOne();
+
+    product.rating = Number(result.avg) || 0;
+
+    await productRepo.save(product);
 
     res.status(200).json({ message: "Review added", review: review });
   } catch (error) {

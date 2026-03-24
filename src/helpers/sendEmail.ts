@@ -17,8 +17,9 @@ export async function sendEmail(to: string, otp: string) {
     };
 
     const response = await sgMail.send(msg);
+    console.log("OTP email sent:", response[0].statusCode);
   } catch (err: any) {
-    throw new Error(err)
+    console.error("Failed to send OTP email:", err.response?.body || err.message);
   }
 }
 
@@ -42,7 +43,8 @@ export async function sendResetEmail(to: string, token: string) {
     };
 
     const response = await sgMail.send(msg);
+    console.log("Reset email sent:", response[0].statusCode);
   } catch (err: any) {
-    throw new Error(err)
+    console.error("Failed to send reset email:", err.response?.body || err.message);
   }
 }
