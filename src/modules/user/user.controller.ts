@@ -12,10 +12,11 @@ import {
   hashPassword,
   sendResetEmail,
   verifyPassword,
+  validatePhoneNumber,
 } from "@helpers";
 import { TRequest, TResponse } from "@types";
 import { NextFunction } from "express";
-import {TSignInUserDTO, TSignUpUserDTO, RatingDTO } from "./dtos";
+import { RatingDTO, TSignInUserDTO, TSignUpUserDTO } from "./dtos";
 import { sendEmail } from "@helpers";
 import { CartItemsEntity } from "db/entities/cart-items.entity";
 
@@ -37,6 +38,10 @@ export async function signUpUser(
       state,
     } = req.dto;
     const userRepository = getRepo(UserEntity);
+
+    if(!validatePhoneNumber(phone)){
+      return res.status(400).json({message:'Invalid phone number'})
+    }
 
     const existingUser = await userRepository.findOne({
       where: [{ email }, { phone }],
