@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm"
-import { ProductsEntity } from "./products.entity";
+import { ProductsEntity } from "@entities";
 
 @Entity("categories")
 export class CategoriesEntity{
@@ -7,13 +7,13 @@ export class CategoriesEntity{
     id:number;
 
     @Column({type:"varchar", length:50, nullable:false, unique:true})
-    categoryName:string
+    category_name:string
 
     @CreateDateColumn()
-    createdAt: Date;
+    created_at: Date;
     
     @UpdateDateColumn()
-    updatedAt: Date;
+    updated_at: Date;
 
     @OneToMany(() => ProductsEntity, (product) => product.category)
     products: ProductsEntity[];

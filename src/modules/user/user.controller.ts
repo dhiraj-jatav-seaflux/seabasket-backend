@@ -1,4 +1,9 @@
-import { ProductsEntity, ReviewsEntity, UserEntity } from "@entities";
+import {
+  CartsEntity,
+  ProductsEntity,
+  ReviewsEntity,
+  UserEntity,
+} from "@entities";
 import {
   encode,
   decode,
@@ -7,11 +12,13 @@ import {
   hashPassword,
   sendResetEmail,
   verifyPassword,
+  validatePhoneNumber,
 } from "@helpers";
 import { TRequest, TResponse } from "@types";
 import { NextFunction } from "express";
-import { TSignInUserDTO, TSignUpUserDTO } from "./dtos";
+import { RatingDTO, TSignInUserDTO, TSignUpUserDTO } from "./dtos";
 import { sendEmail } from "@helpers";
+import { CartItemsEntity } from "db/entities/cart-items.entity";
 
 export async function signUpUser(
   req: TRequest<TSignUpUserDTO>,
@@ -32,13 +39,17 @@ export async function signUpUser(
     } = req.dto;
     const userRepository = getRepo(UserEntity);
 
+    if(!validatePhoneNumber(phone)){
+      return res.status(400).json({message:'Invalid phone number'})
+    }
+
     const existingUser = await userRepository.findOne({
       where: [{ email }, { phone }],
     });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "Account already exists. Please log in.",
+        message: "User already exists please login",
       });
     }
 
@@ -64,7 +75,7 @@ export async function signUpUser(
 
     await userRepository.save(user);
 
-    await sendEmail(user.email, otp)
+    await sendEmail(user.email, otp);
 
     const token = encode({ id: user.id });
 
@@ -116,7 +127,7 @@ export async function signInUser(
 
     await userRepository.save(user);
 
-    await sendEmail(user.email, otp)
+    await sendEmail(user.email, otp);
 
     const token = encode({
       id: user.id,
@@ -137,8 +148,12 @@ export async function verifyLoginOtp(
   next: NextFunction,
 ) {
   try {
-    const { otp } = req.body;
+    const { otp, cartItems } = req.body;
     const token = req.headers.authorization?.split(" ")[1];
+
+    const cartsRepo = getRepo(CartsEntity);
+    const cartItemsRepo = getRepo(CartItemsEntity);
+    const productsRepo = getRepo(ProductsEntity);
 
     if (!token) {
       return next({ status: 401, message: "Token missing" });
@@ -166,6 +181,64 @@ export async function verifyLoginOtp(
 
     if (new Date() > user.login_otp_expiration) {
       return next({ status: 400, message: "OTP expired" });
+    }
+
+    if (cartItems && cartItems.length > 0) {
+      const userCart = await cartsRepo.findOne({
+        where: { id: user.id },
+      });
+
+      if (!userCart) {
+        const cart = cartsRepo.create({
+          user_id: user.id,
+        });
+
+        await cartsRepo.save(cart);
+
+        for (const data of cartItems) {
+          const product = await productsRepo.findOne({
+            where: { id: data.id },
+          });
+
+          if (!product) continue;
+
+          const cartItem = cartItemsRepo.create({
+            cart_id: cart.id,
+            product_id: product.id,
+            quantity: data.quantity,
+          });
+
+          await cartItemsRepo.save(cartItem);
+        }
+      } else {
+        for (const data of cartItems) {
+          const product = await productsRepo.findOne({
+            where: { id: data.id },
+          });
+
+          if (!product) continue;
+
+          const existingCartItem = await cartItemsRepo.findOne({
+            where: {
+              cart_id: userCart.id,
+              product_id: product.id,
+            },
+          });
+
+          if (existingCartItem) {
+            existingCartItem.quantity += data.quantity;
+            await cartItemsRepo.save(existingCartItem);
+          } else {
+            const newCartItem = cartItemsRepo.create({
+              cart_id: userCart.id,
+              product_id: product.id,
+              quantity: data.quantity,
+            });
+
+            await cartItemsRepo.save(newCartItem);
+          }
+        }
+      }
     }
 
     user.login_otp = null;
@@ -219,7 +292,7 @@ export async function resendOtp(
 
     await userRepository.save(user);
 
-    await sendEmail(user.email, otp)
+    await sendEmail(user.email, otp);
 
     const newToken = encode({
       id: user.id,
@@ -239,16 +312,17 @@ export async function forgotPassword(
   res: TResponse,
   next: NextFunction,
 ) {
-  const { email } = req.body;
-  const userRepository = getRepo(UserEntity);
-
   try {
+    const { email } = req.body;
+
+    const userRepository = getRepo(UserEntity);
+
     const user = await userRepository.findOne({
       where: { email },
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(400).json({ message: "User does not exist" });
     }
 
     const token = encode({ id: user.id });
@@ -259,7 +333,7 @@ export async function forgotPassword(
 
     await userRepository.save(user);
 
-    await sendResetEmail(user.email, token)
+    await sendResetEmail(user.email, token);
 
     res
       .status(200)
@@ -274,22 +348,19 @@ export async function resetPassword(
   res: TResponse,
   next: NextFunction,
 ) {
-  const { token } = req.params;
-  const { password } = req.body;
-
-  const userRepository = getRepo(UserEntity);
-
   try {
+    const { password, token } = req.body;
+    const userRepository = getRepo(UserEntity);
     const user = await userRepository.findOne({
       where: { reset_token: token },
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(400).json({ message: "Invalid or expired token" });
     }
 
-    if (!user.reset_token_expiration || user.reset_token_expiration < new Date()) {
-      return res.status(400).json({ message: "Invalid or expired reset token" });
+    if (user.reset_token_expiration < new Date()) {
+      return res.status(400).json({ message: "Invalid or expired token" });
     }
 
     user.password = await hashPassword(password);
@@ -345,28 +416,39 @@ export async function updateUser(
   res: TResponse,
   next: NextFunction,
 ) {
-  const { userId } = req.params;
-  const {
-    first_name,
-    last_name,
-    email,
-    password,
-    phone,
-    address,
-    city,
-    pincode,
-    state,
-  } = req.dto;
+  const { id } = req.me;
+  const { first_name, last_name, email, phone, address, city, pincode, state } =
+    req.dto;
 
   try {
     const userRepository = getRepo(UserEntity);
 
     const user = await userRepository.findOne({
-      where: { id: Number(userId) },
+      where: { id },
     });
 
     if (!user) {
       return res.status(400).json({ message: "User does not exist" });
+    }
+
+    const existingUserEmail = await userRepository.findOne({
+      where: { email },
+    });
+
+    const existingUserPhone = await userRepository.findOne({
+      where: { phone },
+    });
+
+    if (existingUserEmail && existingUserEmail.id != id) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
+    if (existingUserPhone && existingUserPhone.id != id) {
+      return res.status(400).json({ message: "Phone number already exists" });
+    }
+
+    if(!validatePhoneNumber(phone)){
+      return res.status(400).json({message:'Invalid phone number'})
     }
 
     user.first_name = first_name;
@@ -374,7 +456,6 @@ export async function updateUser(
     user.address = address;
     user.city = city;
     user.email = email;
-    user.password = password;
     user.pincode = pincode;
     user.phone = phone;
     user.state = state;
@@ -396,14 +477,14 @@ export async function addReview(
     const productId = Number(req.params.productId);
     const { id } = req.me;
 
-    const { comment,rating } = req.body;
+    const { comment, rating } = RatingDTO.parse(req.body);
 
     const productRepo = getRepo(ProductsEntity);
+    const reviewsRepo = getRepo(ReviewsEntity);
+
     const product = await productRepo.findOne({
       where: { id: productId },
     });
-
-    const reviewsRepo = getRepo(ReviewsEntity);
 
     if (!product) {
       return res.status(404).json({ message: "Product does not exist" });
@@ -411,8 +492,8 @@ export async function addReview(
 
     const alreadyReviewed = await reviewsRepo.findOne({
       where: {
-        productId: productId,
-        userId: id,
+        product_id: productId,
+        user_id: id,
       },
     });
 
@@ -423,13 +504,23 @@ export async function addReview(
     }
 
     const review = reviewsRepo.create({
-      productId: productId,
-      userId: id,
+      product_id: productId,
+      user_id: id,
       rating: rating,
       comment,
     });
 
     await reviewsRepo.save(review);
+
+    const result = await reviewsRepo
+      .createQueryBuilder("review")
+      .select("AVG(review.rating)", "avg")
+      .where("review.product_id = :productId", { productId })
+      .getRawOne();
+
+    product.rating = Number(result.avg) || 0;
+
+    await productRepo.save(product);
 
     res.status(200).json({ message: "Review added", review: review });
   } catch (error) {
