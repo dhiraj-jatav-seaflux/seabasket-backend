@@ -1,5 +1,5 @@
-import { UserEntity } from "@entities";
 import { Column, CreateDateColumn, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { UserEntity } from "@entities";
 import { CartItemsEntity } from "@entities";
 
 
