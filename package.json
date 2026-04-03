@@ -8,7 +8,7 @@
   "scripts": {
     "tsc": "tsc",
     "dev": "ts-node-dev --respawn -r tsconfig-paths/register --transpile-only src/index.ts",
-    "start": "tsc && tsc-alias && node dist",
+    "start": "node dist/server.js",
     "build": "tsc && tsc-alias",
     "prepare": "husky",
     "format": "biome check --write src/",
