@@ -28,18 +28,6 @@ export class UserEntity {
   @Column({type:"enum", enum:UserRole, default:UserRole.USER})
   role:UserRole
 
-  // @Column({type:"text", nullable:false})
-  // address:string
-
-  // @Column({type:"varchar", length:100, nullable:false})
-  // city:string
-
-  // @Column({type:"varchar", length:6, nullable:false})
-  // pincode:string
-
-  // @Column({type:"varchar", length:100, nullable:false})
-  // state:string
-
   @Column({ type: "varchar", length: 6, nullable: true })
   login_otp: string;
 

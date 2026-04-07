@@ -26,6 +26,5 @@ export const acl = async (req: TRequest, res: TResponse, next: () => void) => {
   }
 
   req.me = user;
-  // req.isAdmin = user.role === UserRole.ADMIN;
   next();
 };

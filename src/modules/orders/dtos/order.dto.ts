@@ -8,15 +8,6 @@ export const OrderDTO = z.object({
 
   addressId:z.number(),
 
-  // address: z
-  //   .string()
-  //   .trim()
-  //   .min(5, "Address is too short"),
-  
-  //   city: z.string().trim().nonempty(),
-  //   pincode:z.string().length(6).nonempty(),
-  //   state: z.string().trim().nonempty(),
-
   paymentMode: z.nativeEnum(PaymentMode).default(PaymentMode.COD),
 })
 .superRefine((data, ctx) => {
