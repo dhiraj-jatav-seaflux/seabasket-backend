@@ -1,9 +1,163 @@
-import { CartsEntity, CategoriesEntity, ProductsEntity } from "@entities";
-import { getRepo } from "@helpers";
+import {
+  CategoriesEntity,
+  ProductImagesEntity,
+  ProductsEntity,
+} from "@entities";
+import { getRepo, uploadToCloudinary } from "@helpers";
 import { TRequest, TResponse } from "@types";
-import { CartItemsEntity } from "db/entities/cart-items.entity";
 import { NextFunction } from "express";
-import { finalPrice } from "@helpers";
+import { finalDiscountPrice } from "@helpers";
+import cloudinary from "configs/cloudinary";
+import { TProductDTO } from "./dtos/products-dto";
+
+export async function createProduct(
+  req: TRequest<TProductDTO>,
+  res: TResponse,
+  next: NextFunction,
+) {
+  try {
+    const {
+      name,
+      categoryId,
+      description,
+      price,
+      discount,
+      stock,
+      isTrending,
+    } = req.dto;
+
+    const productRepository = getRepo(ProductsEntity);
+    const product = productRepository.create({
+      name,
+      category_id: categoryId,
+      description,
+      price,
+      discount,
+      stock,
+      is_trending: isTrending,
+    });
+    await productRepository.save(product);
+
+    res.status(201).json({ message: "Product created successfully", product });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function uploadProductImage(
+  req: TRequest,
+  res: TResponse,
+  next: NextFunction,
+) {
+  try {
+    const productId = Number(req.params.productId);
+    const imageRepo = getRepo(ProductImagesEntity);
+    const files = req.files as Express.Multer.File[];
+
+    const productsRepo = getRepo(ProductsEntity);
+
+    const product = await productsRepo.findOne({
+      where: { id: productId },
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ message: "No images uploaded" });
+    }
+    const savedImages = [];
+
+    for (const file of files) {
+      const result: any = await uploadToCloudinary(file.buffer);
+
+      const image = imageRepo.create({
+        product_id: productId,
+        image_url: result.secure_url,
+        public_id: result.public_id,
+      });
+
+      await imageRepo.save(image);
+
+      savedImages.push(image);
+    }
+    res.json({
+      message: "Images uploaded successfully",
+      images: savedImages,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteProduct(
+  req: TRequest,
+  res: TResponse,
+  next: NextFunction,
+) {
+  try {
+    const productId = Number(req.params.productId);
+
+    const productRepo = getRepo(ProductsEntity);
+    const imagesRepo = getRepo(ProductImagesEntity);
+
+    const product = await productRepo.findOne({
+      where: { id: productId },
+    });
+
+    const images = await imagesRepo.find({
+      where: { product_id: productId },
+    });
+
+    for (const img of images) {
+      await cloudinary.uploader.destroy(img.public_id);
+    }
+
+    if (!product) {
+      return res.status(404).json({ message: "Product does not exist" });
+    }
+
+    await imagesRepo.delete({ product_id: productId });
+
+    await productRepo.delete(productId);
+
+    res.status(200).json({ message: "Product deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateProduct(req:TRequest<TProductDTO>,res:TResponse,next:NextFunction){
+  try {
+    const {name,categoryId,description,price,discount,stock,isTrending} = req.dto;
+    const productsRepo = getRepo(ProductsEntity);
+    const productId = Number(req.params.productId);
+
+    const product = await productsRepo.findOne({
+      where:{id:productId}
+    });
+
+    if(!product){
+      return res.status(404).json({message:'Product does not exist'});
+    }
+    
+    product.name = name;
+    product.category_id = categoryId;
+    product.description = description;
+    product.price = price;
+    product.discount = discount;
+    product.stock = stock;
+    product.is_trending = isTrending;
+
+    await productsRepo.save(product);
+
+    return res.status(200).json({message:'Product updated successfully',updatedProduct:product});
+
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function getProducts(
   req: TRequest,
@@ -44,19 +198,35 @@ export async function getProducts(
       query.andWhere("product.is_trending = :isTrending", { isTrending });
     }
 
-    if (minPrice) {
-      query.andWhere("product.price >= :minPrice", { minPrice });
+    if (Number(minPrice) > 0) {
+      query.andWhere(
+        "(product.price - (product.price * product.discount / 100)) >= :minPrice",
+        { minPrice: Number(minPrice) },
+      );
     }
 
-    if (maxPrice) {
-      query.andWhere("product.price <= :maxPrice", { maxPrice });
+    if (Number(maxPrice) > 0) {
+      query.andWhere(
+        "(product.price - (product.price * product.discount / 100)) <= :maxPrice",
+        { maxPrice: Number(maxPrice) },
+      );
     }
 
-    if (minRating) {
+    if (
+      minRating &&
+      minRating !== undefined &&
+      minRating !== null &&
+      minRating !== "0"
+    ) {
       query.andWhere("product.rating >= :minRating", { minRating });
     }
 
-    if (minDiscount) {
+    if (
+      minDiscount &&
+      minDiscount !== undefined &&
+      minDiscount !== null &&
+      minDiscount !== "0"
+    ) {
       query.andWhere("product.discount >= :minDiscount", { minDiscount });
     }
 
@@ -74,9 +244,9 @@ export async function getProducts(
 
     const productsWithDiscount = products.map((product) => ({
       ...product,
-      finalPrice: finalPrice(
+      finalPrice: finalDiscountPrice(
         Number(product.price),
-        Number(product.discount || 0)
+        Number(product.discount || 0),
       ),
     }));
 
@@ -86,7 +256,7 @@ export async function getProducts(
       limit,
       total,
       totalPages: Math.ceil(total / limit),
-      products:productsWithDiscount,
+      products: productsWithDiscount,
     });
   } catch (error) {
     next(error);
@@ -142,7 +312,7 @@ export async function getProduct(
     if (!product) {
       return res.status(404).json({ message: "Product does not exist" });
     }
-    const discountedPrice = finalPrice(
+    const discountedPrice = finalDiscountPrice(
       Number(product.price),
       Number(product.discount || 0),
     );
@@ -169,254 +339,6 @@ export async function getCategories(
     res
       .status(200)
       .json({ message: "Categories fetched successfully", categories });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function addToCart(
-  req: TRequest,
-  res: TResponse,
-  next: NextFunction,
-) {
-  try {
-    const { id } = req.me;
-    const productId = Number(req.params.productId);
-
-    const cartRepo = getRepo(CartsEntity);
-    const productsRepo = getRepo(ProductsEntity);
-    const cartItemsRepo = getRepo(CartItemsEntity);
-
-    const product = await productsRepo.findOne({
-      where: { id: productId },
-    });
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    if (product.stock < 1) {
-      return res.status(400).json({
-        message: "Product out of stock",
-      });
-    }
-
-    const userCart = await cartRepo.findOne({
-      where: { user_id: id },
-    });
-
-    if (userCart) {
-      const existingCartItem = await cartItemsRepo.findOne({
-        where: {
-          cart_id: userCart.id,
-          product_id: productId,
-        },
-      });
-
-      if (existingCartItem && existingCartItem.quantity + 1 > product.stock) {
-        return res.status(400).json({
-          message: "Not enough stock",
-        });
-      }
-
-      if (existingCartItem) {
-        existingCartItem.quantity += 1;
-        await cartItemsRepo.save(existingCartItem);
-        return res.status(200).json({
-          message: "Product added successfully",
-          cartItem: existingCartItem,
-        });
-      }
-
-      const newCartItem = cartItemsRepo.create({
-        cart_id: userCart.id,
-        product_id: productId,
-        quantity: 1,
-      });
-
-      await cartItemsRepo.save(newCartItem);
-
-      return res
-        .status(200)
-        .json({ message: "Item successfully added", cartItem: newCartItem });
-    } else {
-      const cart = cartRepo.create({
-        user_id: id,
-      });
-
-      await cartRepo.save(cart);
-
-      const newCartItem = cartItemsRepo.create({
-        cart_id: cart.id,
-        product_id: productId,
-        quantity: 1,
-      });
-
-      await cartItemsRepo.save(newCartItem);
-
-      return res
-        .status(200)
-        .json({ message: "Item successfully added", cartItem: newCartItem });
-    }
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function getCart(
-  req: TRequest,
-  res: TResponse,
-  next: NextFunction,
-) {
-  try {
-    const { id } = req.me;
-    const cartRepo = getRepo(CartsEntity);
-    const cartItemRepo = getRepo(CartItemsEntity);
-
-    const cart = await cartRepo.findOne({
-      where: { user_id: id },
-    });
-
-    if (!cart) {
-      return res.status(200).json({
-        message: "No products in the cart",
-        cart: [],
-        totalItems: 0,
-        subtotal: 0,
-      });
-    }
-
-    const cartItems = await cartItemRepo.find({
-      where: { cart_id: cart.id },
-      relations: {
-        product: {
-          images: true,
-        },
-      },
-    });
-
-    if (!cartItems.length) {
-      return res.status(200).json({
-        message: "No products in the cart",
-        cart: [],
-        totalItems: 0,
-        subtotal: 0,
-      });
-    }
-
-    const cartWithPricing = cartItems.map((item) => {
-    const final_price = Math.round(finalPrice(item.product.price, item.product.discount) * 100) / 100;
-      return {
-        ...item,
-        product: {
-          ...item.product,
-          final_price,
-        },
-        total_price: Math.round(final_price * item.quantity * 100) / 100,
-      };
-    });
-
-    const totalItems = cartWithPricing.reduce((acc, item) => acc + item.quantity, 0);
-
-    const subtotal = Math.round(cartWithPricing.reduce((acc, item) => acc + item.total_price, 0) * 100) / 100;
-
-    return res.status(200).json({
-      message: "Cart fetched successfully",
-      cart: cartWithPricing,
-      totalItems,
-      subtotal,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function deleteCartItem(
-  req: TRequest,
-  res: TResponse,
-  next: NextFunction,
-) {
-  try {
-    const { id } = req.me;
-    const productId = Number(req.params.productId);
-
-    const cartRepo = getRepo(CartsEntity);
-    const cartItemsRepo = getRepo(CartItemsEntity);
-
-    const cart = await cartRepo.findOne({
-      where: {
-        user_id: id,
-      },
-    });
-
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
-
-    const cartItem = await cartItemsRepo.findOne({
-      where: {
-        cart_id: cart.id,
-        product_id: productId,
-      },
-    });
-
-    if (!cartItem) {
-      return res.status(400).json({ message: "Item doesn't exist" });
-    }
-
-    await cartItemsRepo.remove(cartItem);
-
-    return res
-      .status(200)
-      .json({ message: "Product removed from cart", cartItem });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function updateCartItemQuantity(
-  req: TRequest,
-  res: TResponse,
-  next: NextFunction,
-) {
-  try {
-    const { id } = req.me;
-    const productId = Number(req.params.productId);
-    const cartsRepo = getRepo(CartsEntity);
-    const cartItemsRepo = getRepo(CartItemsEntity);
-
-    const userCart = await cartsRepo.findOne({
-      where: { user_id: id },
-    });
-
-    if (!userCart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
-
-    const updatedProduct = await cartItemsRepo.findOne({
-      where: { cart_id: userCart.id, product_id: productId },
-    });
-
-    if (!updatedProduct) {
-      return res.status(404).json({ message: "Product in cart not found" });
-    }
-
-    if (updatedProduct.quantity === 1) {
-      await cartItemsRepo.remove(updatedProduct);
-      return res.status(200).json({
-        message: "Product removed from the cart",
-        updatedProduct: updatedProduct,
-      });
-    }
-
-    updatedProduct.quantity = updatedProduct.quantity - 1;
-
-    await cartItemsRepo.save(updatedProduct);
-
-    return res.status(200).json({
-      message: "Cart updated successfully",
-      updatedProduct: updatedProduct,
-    });
   } catch (error) {
     next(error);
   }

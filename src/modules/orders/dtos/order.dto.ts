@@ -6,14 +6,7 @@ export const OrderDTO = z.object({
 
   productId: z.number().optional(),
 
-  address: z
-    .string()
-    .trim()
-    .min(5, "Address is too short"),
-  
-    city: z.string().trim().nonempty(),
-    pincode:z.string().length(6).nonempty(),
-    state: z.string().trim().nonempty(),
+  addressId:z.number(),
 
   paymentMode: z.nativeEnum(PaymentMode).default(PaymentMode.COD),
 })

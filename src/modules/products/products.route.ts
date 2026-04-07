@@ -1,16 +1,19 @@
 import { withRoutes } from "@helpers";
-import { acl, bodyValidator, destructPager } from "@middlewares";
+import { adminAcl, bodyValidator, destructPager, upload } from "@middlewares";
 import { Router } from "express";
-import { addToCart, deleteCartItem, getCart, getCategories, getProduct, getProducts, updateCartItemQuantity } from "./products.controller";
+import { createProduct, deleteProduct, getCategories, getProduct, getProducts, updateProduct, uploadProductImage } from "./products.controller";
+import { reviewRoutes } from "./reviews";
+import { ProductDTO } from "./dtos/products-dto";
 
 const routes = (app: Router) => {
   app.get("/", destructPager, getProducts);
   app.get("/categories", getCategories);
-  app.get('/cart',acl,getCart);
-  app.post('/cart/:productId',acl,addToCart);
-  app.delete('/cart/:productId',acl,deleteCartItem);
-  app.put('/cart/:productId',acl,updateCartItemQuantity)
+  app.post('/',adminAcl,bodyValidator(ProductDTO),createProduct);
+  app.use('/review',reviewRoutes);
+  app.post('/:productId/images',adminAcl,upload.array("images",5),uploadProductImage)
   app.get("/:productId", getProduct);
+  app.delete('/:productId',adminAcl,deleteProduct)
+  app.put('/:productId',adminAcl,bodyValidator(ProductDTO),updateProduct)
 };
 
 export const productRoutes = withRoutes(routes);
